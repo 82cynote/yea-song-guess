@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>通用抽歌播放器 V2.3</title>
+  <title>通用抽歌播放器 V2.4</title>
   <style>
     :root{
       --radius: 20px;
@@ -12,6 +12,7 @@
       --border: #e0e0e0;
       --muted: #666;
       --bg: #fff;
+      --primary: #003354;
     }
 
     body{
@@ -21,7 +22,32 @@
       background: #f4f7f9;
       margin: 0;
     }
-    .wrap{ max-width: 1100px; margin: 0 auto; padding: 10px; box-sizing: border-box; }
+    .wrap{ max-width: 1100px; margin: 0 auto; padding: 10px; box-sizing: border-box; position: relative; }
+
+    /* 遊戲說明視窗 */
+    #instruction-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 600px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    #instruction-modal h2 { margin-top: 0; color: var(--primary); }
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+    }
 
     /* 設定面板 */
     .settings-panel {
@@ -53,19 +79,7 @@
       max-width: 900px;
     }
 
-    .btnAction {
-      padding: 12px 24px;
-      background: #333;
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-    .btnAction:hover { background: #000; }
-
-    /* 頂部操作列：邊框調整為淺色 */
+    /* 頂部操作列 */
     .topbar{
       position: sticky;
       top: 10px;
@@ -88,7 +102,19 @@
       flex-wrap: wrap;
       gap: 20px;
     }
+    .title-group { display: flex; align-items: center; gap: 15px; }
     .title{ font-size: 26px; font-weight: 1000; margin: 0; letter-spacing: 1px; }
+    
+    .btnHelp {
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: #f0f0f0;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     .controls{ display: flex; gap: 10px; }
 
     button{
@@ -110,42 +136,23 @@
       justify-content: center;
       gap: 6px;
     }
-    .btnMain:active { transform: translateY(2px); }
+    .btnAction {
+      padding: 12px 24px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+    }
     button:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* 卡片區 */
-    .card{ 
-      border: 1px solid var(--border); 
-      border-radius: var(--radius); 
-      padding: var(--cardPad); 
-      margin-top: 16px; 
-      background: #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-    }
-
-    /* 計分板：動態組數 */
-    .teamsGrid{ 
-      display: grid; 
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-      gap: var(--gap); 
-    }
-    .teamCard{ 
-      border: 1px solid #f0f0f0; 
-      border-radius: var(--radius); 
-      padding: 20px; 
-      text-align: center;
-      background: #fff;
-    }
-    
-    .teamNameLabel { font-weight: 900; color: #777; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; }
+    /* 卡片與計分 */
+    .card{ border: 1px solid var(--border); border-radius: var(--radius); padding: var(--cardPad); margin-top: 16px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+    .teamsGrid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--gap); }
+    .teamCard{ border: 1px solid #f0f0f0; border-radius: var(--radius); padding: 20px; text-align: center; background: #fff; }
     .teamScoreBig{ font-size: 56px; font-weight: 1100; color: #222; line-height: 1; margin: 10px 0; }
-    
     .scoreControl { display: flex; gap: 10px; justify-content: center; }
-    .scoreBtn{ 
-      width: 60px; height: 60px; 
-      font-size: 22px; border-width: 2px; 
-      display: flex; align-items: center; justify-content: center;
-    }
+    .scoreBtn{ width: 60px; height: 60px; font-size: 22px; border-width: 2px; display: flex; align-items: center; justify-content: center; }
     .scoreBtn.minus { border-style: dashed; color: #bbb; }
 
     /* 進度條 */
@@ -157,6 +164,18 @@
 </head>
 
 <body>
+  <div id="modal-overlay"></div>
+  <div id="instruction-modal">
+    <h2>🎵 遊戲說明</h2>
+    <div style="font-size: 15px; color: #444; max-height: 400px; overflow-y: auto;">
+      <p><strong>1. 準備歌單</strong>：貼上 YouTube 播放清單網址（需包含 list=PL...），並點擊「載入」。清單必須設為公開或不公開。</p>
+      <p><strong>2. 抽歌播放</strong>：點擊「✔️ 抽一首」開始。系統會隨機選曲，若開啟隨機起點，會自動跳轉至歌曲中段（0%-90%）。</p>
+      <p><strong>3. 猜歌與計分</strong>：猜出歌曲後點擊「👀 公佈答案」。公佈後即可點擊各隊的 <strong>+1</strong> 或 <strong>-1</strong> 進行計分。</p>
+      <p><strong>4. 設定記憶</strong>：系統會自動記住你的隊伍名稱、組數與網址，下次開啟可直接載入。</p>
+    </div>
+    <button class="btnAction" style="margin-top:20px; width:100%;" onclick="toggleModal()">我了解了，開始遊戲</button>
+  </div>
+
   <div class="wrap">
     <details id="settings-details" class="settings-panel">
       <summary style="cursor:pointer; font-weight:bold; color:#444;">⚙️ 遊戲設定 (點擊展開/收合)</summary>
@@ -164,7 +183,7 @@
         <div class="settings-row">
           <label>YouTube 播放清單網址</label>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input type="text" id="playlist-url" placeholder="請貼上包含 list=... 的網址">
+            <input type="text" id="playlist-url" placeholder="請貼上播放清單網址">
             <button id="btnLoadPlaylist" class="btnAction">載入歌單資料</button>
           </div>
         </div>
@@ -183,8 +202,7 @@
         </div>
         <div class="settings-row">
           <label>隊伍名稱自訂</label>
-          <div id="name-inputs-container" class="team-name-inputs">
-            </div>
+          <div id="name-inputs-container" class="team-name-inputs"></div>
         </div>
         <div class="settings-row">
           <div style="display:flex; align-items:center; gap:8px;">
@@ -197,7 +215,10 @@
 
     <div class="topbar">
       <div class="topbarRow">
-        <h1 class="title">抽歌播放器</h1>
+        <div class="title-group">
+          <h1 class="title">抽歌播放器</h1>
+          <button class="btnHelp" onclick="toggleModal()">❓ 遊戲說明</button>
+        </div>
         <div class="controls">
           <button id="btnPlay" class="btnMain" disabled>✔️ 抽一首</button>
           <button id="btnPause" class="btnMain" disabled>⏯ 暫停</button>
@@ -208,7 +229,7 @@
     </div>
 
     <div class="card" style="text-align:center; min-height:120px; display:flex; flex-direction:column; justify-content:center;">
-      <div id="now" style="font-size:36px; font-weight:1100; color:#ddd; letter-spacing:1px;">（等待抽歌）</div>
+      <div id="now" style="font-size:36px; font-weight:1100; color:#ddd;">（等待抽歌）</div>
     </div>
 
     <div class="card">
@@ -227,22 +248,14 @@
   <div id="yt-holder"><div id="yt-player"></div></div>
 
   <script>
-    // === 基礎設定 ===
-    const API_URL = "https://script.google.com/macros/s/AKfycbxse0qp46iAcbUD_xCyecHo4BRI7Rf8zOpYlGz5jVftzVgpz1XnRE1mlVn1q9YsIzrr/exec"; // 請更換為你的網址
-    const STORAGE_KEY = "SONG_PLAYER_FINAL_CONFIG";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxse0qp46iAcbUD_xCyecHo4BRI7Rf8zOpYlGz5jVftzVgpz1XnRE1mlVn1q9YsIzrr/exec"; 
+    const STORAGE_KEY = "SONG_PLAYER_V2_4_CONFIG";
 
-    let config = {
-      playlistUrl: "",
-      teamCount: 4,
-      teams: ["Team 1", "Team 2", "Team 3", "Team 4", "Team 5", "Team 6", "Team 7", "Team 8"],
-      randomStart: true
-    };
-
+    let config = { playlistUrl: "", teamCount: 4, teams: [], randomStart: true };
     let songs = [];
     let currentSong = null;
     let history = [];
     let player = null;
-    let playerReady = false;
     let isRevealed = false;
     let teamScores = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -252,12 +265,17 @@
     const $nameContainer = document.getElementById("name-inputs-container");
     const $teamSelect = document.getElementById("team-count-select");
 
-    // === 初始化與儲存 ===
+    function toggleModal() {
+      const m = document.getElementById("instruction-modal");
+      const o = document.getElementById("modal-overlay");
+      const isShow = m.style.display === "block";
+      m.style.display = isShow ? "none" : "block";
+      o.style.display = isShow ? "none" : "block";
+    }
+
     function loadConfig() {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        config = { ...config, ...JSON.parse(saved) };
-      }
+      if (saved) config = { ...config, ...JSON.parse(saved) };
       $teamSelect.value = config.teamCount;
       document.getElementById("playlist-url").value = config.playlistUrl;
       document.getElementById("random-start").checked = config.randomStart;
@@ -297,12 +315,9 @@
       renderTeams();
     };
 
-    // === API 串接 ===
     async function fetchPlaylist() {
       saveConfig();
-      if (!API_URL || API_URL.includes("YOUR_GAS")) return alert("請先填入 GAS API 網址");
-      if (!config.playlistUrl) return alert("請輸入播放清單網址");
-      
+      if (!API_URL || API_URL.includes("YOUR_GAS")) return alert("請填入 API 網址");
       $status.textContent = "⌛ 同步 YouTube 資料中...";
       try {
         const res = await fetch(`${API_URL}?url=${encodeURIComponent(config.playlistUrl)}`);
@@ -313,19 +328,16 @@
           document.getElementById("settings-details").open = false; 
           document.getElementById("btnPlay").disabled = false;
         } else { throw new Error(json.error); }
-      } catch (e) {
-        $status.textContent = `❌ 錯誤：${e.message}`;
-      }
+      } catch (e) { $status.textContent = `❌ 錯誤：${e.message}`; }
     }
 
-    // === 遊戲逻辑 ===
     function renderTeams() {
       $teamsGrid.innerHTML = "";
       for(let i=0; i<config.teamCount; i++) {
         const card = document.createElement("div");
         card.className = "teamCard";
         card.innerHTML = `
-          <div class="teamNameLabel">${config.teams[i]}</div>
+          <div style="font-weight:900; color:#777; font-size:14px; margin-bottom:8px;">${config.teams[i] || '隊伍 '+ (i+1)}</div>
           <div id="teamScore_${i}" class="teamScoreBig">${teamScores[i]}</div>
           <div class="scoreControl">
             <button class="scoreBtn" onclick="handleScore(${i}, 1)">+1</button>
@@ -337,92 +349,63 @@
     }
 
     function handleScore(idx, delta) {
-      if (!isRevealed && delta > 0) return alert("請先揭曉答案再記分喔！");
+      if (!isRevealed && delta > 0) return alert("請先揭曉答案喔！");
       teamScores[idx] += delta;
-      if (teamScores[idx] < 0) teamScores[idx] = 0; // 不扣到負分
+      if (teamScores[idx] < 0) teamScores[idx] = 0;
       document.getElementById(`teamScore_${idx}`).textContent = teamScores[idx];
     }
 
     function pickSong() {
       if (!songs.length) return;
-      const pool = songs.filter(s => !history.includes(s.videoId)).length > 0 
-                   ? songs.filter(s => !history.includes(s.videoId)) : songs;
+      const pool = songs.filter(s => !history.includes(s.videoId)).length > 0 ? songs.filter(s => !history.includes(s.videoId)) : songs;
       const song = pool[Math.floor(Math.random() * pool.length)];
-      
       history.push(song.videoId);
       if (history.length > 30) history.shift();
-      
       currentSong = song;
       isRevealed = false;
-
       $now.textContent = "🎵 猜猜看是哪首歌？";
       $now.style.color = "#444";
       document.getElementById("btnReveal").disabled = false;
       document.getElementById("btnPause").disabled = false;
       document.getElementById("btnPause").textContent = "⏯ 暫停";
-      document.getElementById("progressName").textContent = "播放中...";
-      
       player.loadVideoById({ videoId: song.videoId });
     }
 
-    // === YouTube API ===
     window.onYouTubeIframeAPIReady = () => {
       player = new YT.Player("yt-player", {
         height: '1', width: '1',
         events: {
-          onReady: () => { playerReady = true; },
           onStateChange: (ev) => {
             if (ev.data === YT.PlayerState.PLAYING && config.randomStart) {
               const dur = player.getDuration();
-              if (dur > 5) {
-                const start = Math.floor(dur * (Math.random() * 0.9));
-                player.seekTo(start, true);
-              }
+              if (dur > 5) player.seekTo(Math.floor(dur * (Math.random() * 0.9)), true);
               config.randomStart = false; 
             }
           }
         }
       });
-      
       setInterval(() => {
         if (!player || !player.getCurrentTime || player.getPlayerState() !== 1) return;
-        const cur = player.getCurrentTime();
-        const dur = player.getDuration();
+        const cur = player.getCurrentTime(), dur = player.getDuration();
         if (dur > 0) {
-          const pct = (cur / dur) * 100;
-          document.getElementById("progressFill").style.width = pct + "%";
+          document.getElementById("progressFill").style.width = (cur / dur * 100) + "%";
           document.getElementById("timeText").textContent = formatTime(cur) + " / " + formatTime(dur);
         }
       }, 500);
     };
 
     function formatTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60);
+      const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
       return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    // === 事件監聽 ===
     document.getElementById("btnLoadPlaylist").onclick = fetchPlaylist;
-    document.getElementById("btnPlay").onclick = () => {
-      config.randomStart = document.getElementById("random-start").checked;
-      pickSong();
-    };
-    document.getElementById("btnReveal").onclick = () => {
-      isRevealed = true;
-      $now.textContent = currentSong.title;
-      $now.style.color = "#003354";
-      document.getElementById("progressName").textContent = "已揭曉答案";
-    };
+    document.getElementById("btnPlay").onclick = () => { config.randomStart = document.getElementById("random-start").checked; pickSong(); };
+    document.getElementById("btnReveal").onclick = () => { isRevealed = true; $now.textContent = currentSong.title; $now.style.color = "#003354"; document.getElementById("progressName").textContent = "已揭曉答案"; };
     document.getElementById("btnPause").onclick = () => {
       const st = player.getPlayerState();
-      if (st === 1) { 
-        player.pauseVideo(); 
-        document.getElementById("btnPause").textContent = "▶️ 繼續"; 
-      } else { 
-        player.playVideo(); 
-        document.getElementById("btnPause").textContent = "⏯ 暫停"; 
-      }
+      if (st === 1) { player.pauseVideo(); document.getElementById("btnPause").textContent = "▶️ 繼續"; }
+      else { player.playVideo(); document.getElementById("btnPause").textContent = "⏯ 暫停"; }
     };
 
     const tag = document.createElement('script');
